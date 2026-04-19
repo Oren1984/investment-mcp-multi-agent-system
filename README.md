@@ -1,192 +1,235 @@
-# Oren Salami | 🧠 AI Systems Engineer
+# 🧠 Investment MCP Multi-Agent System
 
-## Intelligent Systems • AI Agents • Data & Automation
+Intelligent Financial Analysis • AI Agents • MLOps Architecture
 
 ---
 
-## 🧠 AI System Templates Library
+## 📌 Overview
 
-A clean, production-oriented collection of AI system skeletons.
+A production-oriented multi-agent AI system for stock analysis, built using:
 
-This repository is a **structure-first AI engineering toolkit**.
+- CrewAI orchestration
+- MCP (Model Context Protocol) tool abstraction
+- FastAPI backend
+- Streamlit interface
+- Observability stack (Prometheus + Grafana)
 
-It does NOT contain production implementations.  
-It provides **reusable system skeletons** that are meant to be copied,
-adapted, and extended inside real project repositories.
+The system was designed as a real-world architecture, then adapted into a demo-ready version without external paid dependencies.
 
 ---
 
 ## 🎯 Purpose
 
-Instead of starting from scratch, this library provides:
+This project demonstrates:
 
-- Proven system structures
-- Minimal but meaningful starter files
-- Clear separation of concerns
-- Consistent engineering patterns across projects
-
----
-
-## 📦 Available Skeletons
-
-| Skeleton | Purpose |
-|--------|--------|
-| DS/ML | Classic machine learning pipelines |
-| DL/NLP | Deep learning & NLP workloads |
-| RAG System | Retrieval-Augmented Generation systems |
-| Agent System | Autonomous AI systems with tools |
-| Shared Platform | Common infrastructure, integrations, security, observability, and runtime standards |
-| UI Templates | Streamlit & React UI skeletons |
+- Multi-agent system design
+- AI orchestration patterns
+- Backend engineering for AI systems
+- MCP-based tool abstraction
+- Production-to-demo adaptation strategy
 
 ---
 
-## 🧱 Project Structure
+## 🧠 System Design
 
-```text
-ai-system-templates/
-├── ds-ml-skeleton/
-├── dl-nlp-skeleton/
-├── rag-system-skeleton/
-├── agent-system-skeleton/
-├── shared-platform/
-├── ui-templates/
-│   ├── streamlit-ui-skeleton/
-│   └── react-ui-skeleton/
-├── examples/
-│   └── rag_with_shared_platform/
-├── prompts/
-├── ai-system-templates-site/
-├── .github/workflows/
-│   └── ci.yml
-└── .gitignore
+Core Flow
+User Request
+    ↓
+Streamlit UI
+    ↓
+FastAPI Backend
+    ↓
+CrewAI Orchestrator
+    ↓
+Specialized Agents
+    ↓
+MCP Tool Gateway
+    ↓
+Data Sources / Services
+    ↓
+Structured Report
+
+---
+
+## 🤖 Agents
+
+Agent	            Responsibility
+Research Agent	    Market data & fundamentals
+Technical Agent	    Indicators & price analysis
+Sector Agent	    Industry context
+Risk Agent	        Risk evaluation
+Report Agent	    Final structured output
+
+---
+
+##  ⚙️ Architecture
+
+UI (Streamlit)
+    → Backend (FastAPI)
+        → CrewAI Orchestration
+            → Agents Layer
+                → MCP Gateway
+                    → External/Internal Tools
+                        → Database (PostgreSQL + pgvector)
+
+---
+
+## 📊 Monitoring
+
+Prometheus → Grafana
+
+---
+
+## 📂 Project Structure
+
+investment-mcp-multi-agent-system/
+├── backend/
+│   ├── app/
+│   │   ├── api/
+│   │   ├── agents/
+│   │   ├── crews/
+│   │   ├── mcp/
+│   │   ├── services/
+│   │   ├── db/
+│   │   ├── schemas/
+│   │   └── core/
+│   ├── tests/
+│   └── requirements.txt
+│
+├── ui/
+│   └── app/
+│
+├── infra/
+│   ├── docker/
+│   ├── k8s/
+│   └── terraform/
+│
+├── monitoring/
+├── docs/
+├── notebooks/
+├── static-site/
+└── docker-compose.yml
+---
+
+## 🚀 Quick Start
+
+```bash
+cp .env.example .env
+docker-compose up --build
 ```
 
-> Each directory is self-contained and designed to be copied independently.
+Open:
+
+UI → http://localhost:8501
+
+API → http://localhost:8000/docs
 
 ---
 
-## 🧠 Philosophy
+## 🔌 API
 
-This library focuses on **structure, not implementation**.
-
-You define:
-- Architecture
-- Flow
-- Integration
-
-You do NOT define here:
-- Models
-- Business-specific prompts
-- Business logic
-
-The `shared-platform` provides reusable infrastructure components such as:
-configuration management, structured logging, security guards, timeout control,
-retry logic, integration contracts, prompt templating, and observability foundations.
-
-> **How to use this library:**  
-> Copy the skeleton that fits your project type.  
-> Combine it with `shared-platform` modules where needed.  
-> Implement all business logic in a **separate downstream project repository**.  
-> The skeleton stays clean — your project carries the implementation.
-
-Each skeleton is intentionally minimal.  
-It is designed to guide system structure — not to enforce implementation.
+Endpoint	                    Description
+POST /api/v1/analyze	        Start analysis
+GET /api/v1/analyze/{id}/status	Check status
+GET /api/v1/analyze/{id}/report	Get result
+GET /api/v1/health	            Health check
+GET /api/v1/ready	            Readiness
 
 ---
 
-UI is a separate concern and is not embedded within system skeletons.  
-It is handled as a dedicated layer with its own reusable structure.
+##  🧪 Testing
 
-UI templates are optional and can be swapped or replaced depending on project needs.
+```bash
+pytest
+```
 
----
+Includes:
 
-## 🎨 UI Layer
-
-Frontend is not embedded in system skeletons.
-
-Instead, use the dedicated UI templates:
-
-- Streamlit → fast demos, internal tools, POCs
-- React → production-ready frontend applications
-
-This keeps backend, AI logic, and UI cleanly separated.
+- Unit tests
+- Integration tests
+- E2E flows
 
 ---
 
-## 🚀 How to Use
+## 📊 Observability
 
-1. Choose the relevant skeleton(s)
-2. Copy them into a new project repository
-3. Remove what is not needed
-4. Add business logic and integrations
-5. Adapt structure based on your system design
-6. Run and evolve independently from this library
+- Prometheus metrics
+- Grafana dashboards
+- Request lifecycle tracking
+- Agent execution visibility
 
 ---
 
-## 🔧 What’s Included
+## 🔐 Security
 
-Each skeleton contains:
-
-- `README.md`
-- `.env.example`
-- `requirements.txt`
-- `Dockerfile`
-- In shared-platform: optional reusable modules for config, logging, security, integrations, observability, retry, and timeout handling
-- Optional: UI templates (Streamlit / React)
-- Optional: `docker-compose.yml`, `tests/`, `ci/`
+- API Key authentication
+- Rate limiting
+- Report validation
 
 ---
 
-## 🚫 What’s NOT Included
+## ⚠️ Known Limitations
 
-- Model implementations
-- Prompt engineering
-- Pipelines
-- Real datasets
-- Business logic
-
----
-
-## 🧠 Key Principle
-
-> “I don’t just build AI models — I design and productionize AI systems.”
+- No RBAC (single API key)
+- In-memory rate limiting
+- External data reliability varies
+- Demo mode may use mocked data
 
 ---
 
-## 📌 When to Use What
+## 📚 Documentation
 
-- Use **DS/ML** → for classic ML tasks
-- Use **DL/NLP** → for heavy models / GPU workloads
-- Use **RAG** → when you need knowledge retrieval
-- Use **Agent** → when actions & orchestration are required
-- Use **Shared** → in every serious project that needs common standards, integrations, observability, security, or runtime controls
-- Use **UI Templates** → when you need a ready-to-use frontend (Streamlit or React)
+docs/
+├── api_contracts.md
+├── runbook.md
+├── testing_matrix.md
+├── qa_audit.md
+├── known_limitations.md
 
 ---
 
-## ⚠️ Important
+## 🎤 Demo Assets
 
-This repository is **not intended to be executed as-is**.
+- Notebooks (demo + technical)
+- Static portfolio site
+- API walkthrough
 
-It is a **foundation layer** for building real systems in separate repositories.
+---
+
+## 🧩 Design Principles
+
+- Structure-first engineering
+- Modular architecture
+- Separation of concerns
+- API-first design
+- Production-ready mindset
+
+---
+
+## 🧠 Key Highlights
+
+- Multi-agent orchestration (CrewAI)
+- MCP abstraction layer
+- Async backend (FastAPI)
+- Vector-ready DB (pgvector)
+- Full Docker environment
+- Kubernetes & Terraform ready
+
+---
+
+## 👨‍💻 Author
+
+Oren Salami
+AI Systems Engineer
 
 ---
 
 ## 🏁 Final Note
 
-This is a **developer toolkit**, not a framework.
+This project follows a production-first approach:
 
-Use it to move fast, stay consistent, and build structured systems.
-
----
-
-## License
-
-This project is licensed under the MIT License.
-See the `LICENSE` file for details.
+Build the full system →
+Then adapt it into a clean, controlled demo →
+Then present via static + notebooks.
 
 ---
-
-

@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: investment-ui
+  namespace: investment-system
+  labels:
+    app: investment-ui
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: investment-ui
+  template:
+    metadata:
+      labels:
+        app: investment-ui
+    spec:
+      containers:
+        - name: ui
+          image: gcr.io/PROJECT_ID/investment-ui:latest
+          ports:
+            - containerPort: 8501
+          env:
+            - name: BACKEND_URL
+              value: "http://backend-service:8000"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "1Gi"
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 20
+            periodSeconds: 30

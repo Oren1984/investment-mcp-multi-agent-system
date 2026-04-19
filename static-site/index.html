@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Investment MCP Multi-Agent System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Navigation ─────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-inner">
+    <span class="nav-logo">investment-mcp-system</span>
+    <ul class="nav-links">
+      <li><a href="#overview">Overview</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#agents">Agents</a></li>
+      <li><a href="#demo">Live Demo</a></li>
+      <li><a href="#testing">Testing</a></li>
+      <li><a href="#notebooks">Notebooks</a></li>
+      <li><a href="#deployment">Deployment</a></li>
+    </ul>
+  </div>
+</nav>
+
+
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<section id="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-content">
+    <span class="hero-badge">MCP · CrewAI · FastAPI · PostgreSQL</span>
+    <h1 class="hero-title">Investment MCP<br/>Multi-Agent System</h1>
+    <p class="hero-sub">
+      Five specialized AI agents collaborate via a structured tool gateway to produce
+      full equity analysis reports — research, technicals, sector, risk, and synthesis — end-to-end.
+    </p>
+    <div class="hero-actions">
+      <a href="#demo" class="btn btn-primary">▶ See it in action</a>
+      <a href="https://github.com/Oren1984/investment-mcp-multi-agent-system" class="btn btn-secondary">GitHub Repository</a>
+    </div>
+
+    <div class="metrics-row mt3" style="max-width:640px; margin-left:auto; margin-right:auto;">
+      <div class="metric-card">
+        <div class="metric-value text-accent counter" data-target="5" data-suffix="">0</div>
+        <div class="metric-label">AI Agents</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value text-accent2 counter" data-target="6" data-suffix="">0</div>
+        <div class="metric-label">MCP Tools</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value text-green counter" data-target="117" data-suffix="+">0</div>
+        <div class="metric-label">Tests</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-value text-accent counter" data-target="4" data-suffix="">0</div>
+        <div class="metric-label">Test Layers</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Overview ──────────────────────────────────────────────────── -->
+<section id="overview">
+  <div class="container">
+    <div class="section-label">Project</div>
+    <h2>What This System Solves</h2>
+    <div class="section-divider"></div>
+
+    <div class="grid-3">
+      <div class="card fade-in">
+        <div class="card-icon">🔬</div>
+        <h3>Multi-Domain Research</h3>
+        <p>A single analysis requires fundamentals, technical indicators, sector positioning, and risk metrics. Each domain runs in a dedicated agent with specialist tool access.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon">🔗</div>
+        <h3>Structured Tool Protocol</h3>
+        <p>The MCP Gateway validates every tool call with Pydantic schemas before execution. Agents call tools by name — they never know which service backs them.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon">⚡</div>
+        <h3>Production-Grade API</h3>
+        <p>Async FastAPI backend with API key auth, rate limiting, Prometheus metrics, Alembic migrations, and structured JSON logging. Built to be defended technically.</p>
+      </div>
+    </div>
+
+    <div class="mt3">
+      <div class="tech-stack">
+        <span class="tech-pill">Python 3.11</span>
+        <span class="tech-pill">FastAPI</span>
+        <span class="tech-pill">CrewAI</span>
+        <span class="tech-pill">Anthropic Claude</span>
+        <span class="tech-pill">PostgreSQL + pgvector</span>
+        <span class="tech-pill">SQLAlchemy 2.0</span>
+        <span class="tech-pill">Pydantic v2</span>
+        <span class="tech-pill">Streamlit</span>
+        <span class="tech-pill">yfinance</span>
+        <span class="tech-pill">slowapi</span>
+        <span class="tech-pill">Prometheus</span>
+        <span class="tech-pill">Grafana</span>
+        <span class="tech-pill">Docker Compose</span>
+        <span class="tech-pill">Kubernetes</span>
+        <span class="tech-pill">Terraform / GCP</span>
+        <span class="tech-pill">Alembic</span>
+        <span class="tech-pill">pytest</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Architecture ───────────────────────────────────────────────── -->
+<section id="architecture" style="background: #0d1220;">
+  <div class="container">
+    <div class="section-label">Engineering</div>
+    <h2>System Architecture</h2>
+    <div class="section-divider"></div>
+
+    <div class="arch-flow">
+      <div class="arch-layer layer-ui">
+        <span class="layer-name">Streamlit UI</span>
+        <span class="layer-detail">Submit → Poll → View report · Report validation warnings surfaced</span>
+        <span class="layer-port">:8501</span>
+      </div>
+      <div class="arch-layer layer-api">
+        <span class="layer-name">FastAPI Backend</span>
+        <span class="layer-detail">Async · X-API-Key auth · slowapi rate limit · CorrelationID · /metrics</span>
+        <span class="layer-port">:8000</span>
+      </div>
+      <div class="arch-layer layer-crew">
+        <span class="layer-name">CrewAI Orchestration</span>
+        <span class="layer-detail">5 agents · Sequential process · ThreadPoolExecutor · copy_context() propagation</span>
+        <span class="layer-port">worker threads</span>
+      </div>
+      <div class="arch-layer layer-mcp">
+        <span class="layer-name">MCP Tool Gateway</span>
+        <span class="layer-detail">Singleton (double-checked lock) · MCPRegistry · Pydantic validation · 6 tools</span>
+        <span class="layer-port">in-process</span>
+      </div>
+      <div class="arch-layer layer-db" style="border-left-color:#10b981;">
+        <span class="layer-name">Services + Data</span>
+        <span class="layer-detail">yfinance · NewsAPI · Anthropic · PostgreSQL 16 + pgvector · Alembic migrations</span>
+        <span class="layer-port">:5432</span>
+      </div>
+    </div>
+
+    <div class="grid-2 mt3">
+      <div class="card fade-in">
+        <div class="card-label">Key Design Decision</div>
+        <h3>Dual Session Strategy</h3>
+        <p>FastAPI routes use <code>asyncpg</code> (async SQLAlchemy). MCP tools inside executor threads use <code>psycopg2</code> (sync). Two pools, two drivers — no blocking, no deadlocks.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-label">Key Design Decision</div>
+        <h3>ContextVar Propagation</h3>
+        <p>The <code>run_id</code> ContextVar is cloned via <code>copy_context()</code> before entering the executor — every log line throughout the full 5-agent run carries the same <code>run_id</code> for correlation.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Agents ────────────────────────────────────────────────────── -->
+<section id="agents">
+  <div class="container">
+    <div class="section-label">Orchestration</div>
+    <h2>The 5 Specialized Agents</h2>
+    <div class="section-divider"></div>
+    <p>Agents execute sequentially. Each receives context from all prior agents before running. The Report Writer sees all 4 upstream outputs before synthesising the final report.</p>
+
+    <div class="grid-5 mt2">
+      <div class="agent-card fade-in">
+        <div class="agent-number">01 / Research</div>
+        <div class="agent-name">Research Agent</div>
+        <div class="agent-tools">
+          <code>get_stock_price</code><br/>
+          <code>get_financial_data</code><br/>
+          <code>get_news_sentiment</code>
+        </div>
+      </div>
+      <div class="agent-card fade-in">
+        <div class="agent-number">02 / Technical</div>
+        <div class="agent-name">Technical Analyst</div>
+        <div class="agent-tools">
+          <code>get_stock_price</code><br/>
+          <code>calculate_risk_metrics</code> (technicals)
+        </div>
+      </div>
+      <div class="agent-card fade-in">
+        <div class="agent-number">03 / Sector</div>
+        <div class="agent-name">Sector Analyst</div>
+        <div class="agent-tools">
+          <code>get_sector_analysis</code><br/>
+          <code>get_stock_price</code>
+        </div>
+      </div>
+      <div class="agent-card fade-in">
+        <div class="agent-number">04 / Risk</div>
+        <div class="agent-name">Risk Analyst</div>
+        <div class="agent-tools">
+          <code>calculate_risk_metrics</code><br/>
+          Beta · Sharpe · VaR · Drawdown
+        </div>
+      </div>
+      <div class="agent-card fade-in">
+        <div class="agent-number">05 / Writer</div>
+        <div class="agent-name">Report Writer</div>
+        <div class="agent-tools">
+          <code>save_report</code><br/>
+          6-section validated output
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt3 fade-in">
+      <div class="card-label">MCP Tool Gateway — 6 Tools</div>
+      <div class="tech-stack mt1">
+        <span class="tech-pill text-accent">get_stock_price</span>
+        <span class="tech-pill text-accent">get_financial_data</span>
+        <span class="tech-pill text-accent">calculate_risk_metrics</span>
+        <span class="tech-pill text-accent">get_news_sentiment</span>
+        <span class="tech-pill text-accent">get_sector_analysis</span>
+        <span class="tech-pill text-accent">save_report</span>
+      </div>
+      <p class="mt2">Every tool call is validated against a <strong>Pydantic input schema</strong> before reaching the service layer. Invalid inputs raise <code>ToolExecutionError</code> — never silently passed to the LLM.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Live Demo ──────────────────────────────────────────────────── -->
+<section id="demo" style="background: #0d1220;">
+  <div class="container">
+    <div class="section-label">Interactive</div>
+    <h2>Simulated Analysis Flow</h2>
+    <div class="section-divider"></div>
+    <p>The simulation below reproduces the log stream and metric output of a real analysis run. To run against a live backend, start the Docker stack and open the Streamlit UI at <code>localhost:8501</code>.</p>
+
+    <div id="demo-panel" class="mt2">
+      <div class="demo-controls">
+        <div class="demo-input-group">
+          <label>Ticker</label>
+          <select id="demo-ticker" class="demo-input">
+            <option>AAPL</option>
+            <option>MSFT</option>
+            <option>NVDA</option>
+            <option>JPM</option>
+            <option>XOM</option>
+          </select>
+        </div>
+        <div class="demo-input-group">
+          <label>Period</label>
+          <select class="demo-input">
+            <option>1y</option>
+            <option>6mo</option>
+            <option>2y</option>
+          </select>
+        </div>
+        <button id="demo-run" class="btn btn-primary">▶ Run Analysis</button>
+      </div>
+
+      <div id="demo-log" class="log-panel">
+        <div class="log-line dim">Select a ticker and click Run Analysis to start the simulation…</div>
+      </div>
+
+      <div id="demo-status" class="status-row mt1"></div>
+      <div id="demo-metrics" class="metrics-row"></div>
+    </div>
+
+    <div class="card mt3 fade-in" style="border-color: var(--warn);">
+      <span style="color:var(--warn);">⚠️ Disclaimer</span>
+      <p class="mt1" style="color:var(--text-dim);">All analysis outputs shown are AI-generated for software demonstration purposes only. They do not constitute financial advice and should never be used to make real investment decisions.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Testing ───────────────────────────────────────────────────── -->
+<section id="testing">
+  <div class="container">
+    <div class="section-label">Quality</div>
+    <h2>Testing Strategy</h2>
+    <div class="section-divider"></div>
+
+    <div data-tabs>
+      <div class="tabs">
+        <button class="tab-btn active">Unit</button>
+        <button class="tab-btn">Integration</button>
+        <button class="tab-btn">Smoke</button>
+        <button class="tab-btn">E2E</button>
+      </div>
+
+      <div class="tab-content active">
+        <div class="grid-3">
+          <div class="card"><div class="card-label">~51 Tests</div><h3>Pure Logic</h3><p>RSI edge cases, Sharpe ratio, max drawdown, schema validation, MCP tool validation, error class hierarchy. No I/O — mocks for all external dependencies.</p></div>
+          <div class="card"><div class="card-label">Key Files</div><h3>What's Covered</h3><p><code>test_risk_calculations.py</code> — 12 tests incl. RSI div-by-zero guard<br/><code>test_mcp_tools.py</code> — 14 tests incl. gateway routing<br/><code>test_report_validator.py</code> — 5 tests for section validation</p></div>
+          <div class="card"><div class="card-label">Coverage</div><h3>Isolation Strategy</h3><div class="test-bar mt1"><div class="test-bar-fill" data-width="94%"></div></div><p class="mt1">All service calls mocked at fixture level. Tests run in milliseconds with no network requirements.</p></div>
+        </div>
+      </div>
+
+      <div class="tab-content">
+        <div class="grid-3">
+          <div class="card"><div class="card-label">~39 Tests</div><h3>Real Routes</h3><p>Full FastAPI application under test via <code>httpx.AsyncClient</code> + <code>ASGITransport</code>. Auth (401/403), rate limiting config, analysis CRUD, DB repository operations.</p></div>
+          <div class="card"><div class="card-label">DB Isolation</div><h3>SQLite In-Memory</h3><p>In-memory SQLite with <code>StaticPool</code> replaces PostgreSQL. <code>dependency_overrides</code> inject the test DB session and mock gateway into every route.</p></div>
+          <div class="card"><div class="card-label">Key Files</div><h3>What's Covered</h3><p><code>test_api_auth.py</code> — 6 auth scenarios<br/><code>test_api_analysis.py</code> — 15 route tests<br/><code>test_db_repositories.py</code> — 12 CRUD tests</p></div>
+        </div>
+      </div>
+
+      <div class="tab-content">
+        <div class="grid-3">
+          <div class="card"><div class="card-label">~17 Tests</div><h3>Startup Sanity</h3><p>All module imports verified, MCP tool registration confirmed, API defaults checked, Alembic migration files verified syntactically.</p></div>
+          <div class="card"><div class="card-label">New in 3.75</div><h3>Alembic Smoke</h3><p>Confirms <code>alembic.ini</code> exists, <code>env.py</code> is syntactically valid, initial migration file exists and contains both <code>upgrade()</code> and <code>downgrade()</code>.</p></div>
+          <div class="card"><div class="card-label">Purpose</div><h3>Fast CI Gate</h3><p>Runs in under 3 seconds. Catches import errors and configuration drift before the heavier integration suite runs.</p></div>
+        </div>
+      </div>
+
+      <div class="tab-content">
+        <div class="grid-3">
+          <div class="card"><div class="card-label">5 Tests</div><h3>Full API Flow</h3><p>Submit → poll → retrieve report. Invalid ticker rejection. Multiple tickers tracked independently. History contains submitted runs. Report content contains ticker.</p></div>
+          <div class="card"><div class="card-label">Isolation</div><h3>Simulated Crew</h3><p>The actual LLM/CrewAI execution is replaced by a fast sync stub that writes a valid report directly — making E2E tests deterministic without needing API keys.</p></div>
+          <div class="card"><div class="card-label">Also</div><h3>Docker Smoke Script</h3><p><code>scripts/smoke_docker.sh</code> — a bash script that validates health, readiness, submit, status polling, report retrieval, and history against a live Docker stack.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Notebooks ──────────────────────────────────────────────────── -->
+<section id="notebooks" style="background: #0d1220;">
+  <div class="container">
+    <div class="section-label">Documentation</div>
+    <h2>Jupyter Notebooks</h2>
+    <div class="section-divider"></div>
+
+    <div class="grid-3">
+      <div class="nb-card fade-in">
+        <div class="nb-number">01</div>
+        <div class="nb-title">Demo Walkthrough</div>
+        <p>A clean presentation-ready notebook: problem statement, architecture, live API interaction, agent summary, report viewer, and history chart.</p>
+        <div class="nb-sections">
+          <span class="nb-tag">Problem Statement</span>
+          <span class="nb-tag">Architecture</span>
+          <span class="nb-tag">Live API</span>
+          <span class="nb-tag">Agent Outputs</span>
+          <span class="nb-tag">Visualisation</span>
+        </div>
+      </div>
+      <div class="nb-card fade-in">
+        <div class="nb-number">02</div>
+        <div class="nb-title">Technical Architecture</div>
+        <p>Engineering-focused deep dive: MCP gateway pattern, dual session strategy, ContextVar propagation, DB schema, risk calculations, testing design, deployment options, roadmap.</p>
+        <div class="nb-sections">
+          <span class="nb-tag">MCP Design</span>
+          <span class="nb-tag">Thread Safety</span>
+          <span class="nb-tag">DB Schema</span>
+          <span class="nb-tag">Risk Math</span>
+          <span class="nb-tag">Roadmap</span>
+        </div>
+      </div>
+      <div class="nb-card fade-in">
+        <div class="nb-number">03</div>
+        <div class="nb-title">Demo Scenarios</div>
+        <p>3 practical stock scenarios with sector comparison charts, risk metric interpretation guide, recommended demo tickers, what the system does/does not do, and safe disclaimer framing.</p>
+        <div class="nb-sections">
+          <span class="nb-tag">Scenarios</span>
+          <span class="nb-tag">Interpretation</span>
+          <span class="nb-tag">Risk Guide</span>
+          <span class="nb-tag">Limitations</span>
+          <span class="nb-tag">Disclaimer</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Deployment ─────────────────────────────────────────────────── -->
+<section id="deployment">
+  <div class="container">
+    <div class="section-label">Infrastructure</div>
+    <h2>Deployment & Monitoring</h2>
+    <div class="section-divider"></div>
+
+    <div class="grid-3">
+      <div class="card fade-in">
+        <div class="card-icon">🐳</div>
+        <h3>Docker Compose</h3>
+        <p>5 services: backend, Streamlit UI, PostgreSQL + pgvector, Prometheus, Grafana. Health checks between services. Single command startup.</p>
+        <div class="tech-stack mt1">
+          <span class="tech-pill">:8000 API</span>
+          <span class="tech-pill">:8501 UI</span>
+          <span class="tech-pill">:9090 Prom</span>
+          <span class="tech-pill">:3000 Grafana</span>
+        </div>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon">☸️</div>
+        <h3>Kubernetes</h3>
+        <p>Namespace isolation · 2-replica backend deployment with liveness and readiness probes · StatefulSet for Postgres with 20Gi PVC · ConfigMap/Secret separation.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-icon">☁️</div>
+        <h3>Terraform / GCP</h3>
+        <p>GKE Autopilot cluster · Cloud SQL Postgres 16 · Artifact Registry for container images. Fully declarative infrastructure — <code>terraform apply</code>.</p>
+      </div>
+    </div>
+
+    <div class="card mt3 fade-in" style="background: var(--bg-card2);">
+      <div class="card-label">Observability</div>
+      <div class="grid-3 mt1">
+        <div>
+          <h3>Metrics</h3>
+          <p><code>/metrics</code> via <code>prometheus-fastapi-instrumentator</code>. Key metrics: request counts by path/status, p99 latency (crews take 60–90s), executor queue depth.</p>
+        </div>
+        <div>
+          <h3>Structured Logs</h3>
+          <p>JSON log lines with <code>run_id</code> + <code>request_id</code> on every line. ContextVar propagation ensures complete correlation across the full 5-agent execution.</p>
+        </div>
+        <div>
+          <h3>Grafana Dashboard</h3>
+          <p>Auto-provisioned from <code>monitoring/grafana/dashboards/overview.json</code>. Datasource wired to Prometheus automatically on startup.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── Footer ────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container">
+    <p class="mono" style="color:var(--text-muted); font-size:.8rem; margin: 0 auto; max-width: 100%;">
+      Investment MCP Multi-Agent System &nbsp;·&nbsp;
+      Built with FastAPI · CrewAI · Anthropic Claude · PostgreSQL &nbsp;·&nbsp;
+      Portfolio Project — not financial advice
+    </p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

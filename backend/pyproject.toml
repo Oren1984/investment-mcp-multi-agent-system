@@ -1,0 +1,23 @@
+[project]
+name = "investment-mcp-backend"
+version = "1.0.0"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+addopts = "-v --tb=short"
+markers = [
+    "unit: pure unit tests — no I/O",
+    "integration: integration tests — uses in-memory DB",
+    "smoke: startup sanity checks",
+    "e2e: end-to-end API-driven scenarios",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
