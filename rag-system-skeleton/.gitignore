@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+env/
+.idea/
+.vscode/
+.DS_Store
+.env
+*.log
+
+data/raw/*
+data/processed/*
+
+!data/raw/README.md
+!data/processed/README.md

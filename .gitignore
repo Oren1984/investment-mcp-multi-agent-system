@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.whl
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+.env/
+
+# Environment files (never commit real secrets)
+.env
+*.env.local
+
+# Testing
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.junit.xml
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Logs
+logs/
+*.log
+
+# Node / Frontend
+node_modules/
+dist/
+.next/
+.nuxt/
+
+# Model artifacts (large files — use DVC or artifact storage)
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Data (use DVC or artifact storage for real datasets)
+data/raw/*.csv
+data/raw/*.parquet
+datasets/raw/*.csv
+
+# OS
+.DS_Store
+Thumbs.db

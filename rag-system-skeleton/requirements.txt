@@ -1,0 +1,39 @@
+# ========================
+# RAG System — Dependencies
+# ========================
+# Baseline dependencies for a production-oriented RAG system.
+# Uncomment or extend per project requirements.
+
+# --- API layer ---
+fastapi>=0.111
+uvicorn[standard]>=0.29
+pydantic>=2.0
+
+# --- HTTP & async ---
+httpx>=0.27
+
+# --- Environment ---
+python-dotenv>=1.0
+
+# --- Embedding & vector store (choose one per project) ---
+# openai>=1.30            # OpenAI embeddings + GPT
+# anthropic>=0.28         # Anthropic Claude
+# google-generativeai>=0.7 # Google Gemini
+# sentence-transformers>=2.7  # Local embeddings (HuggingFace)
+# chromadb>=0.5           # ChromaDB vector store
+# qdrant-client>=1.9      # Qdrant vector store
+# pinecone-client>=4.0    # Pinecone vector store
+# weaviate-client>=4.6    # Weaviate vector store
+
+# --- Document parsing (choose per project) ---
+# pypdf>=4.0              # PDF parsing
+# python-docx>=1.1        # DOCX parsing
+# unstructured>=0.13      # Multi-format document parsing
+
+# --- Reranking (optional) ---
+# cohere>=5.0             # Cohere reranking
+# flashrank>=0.2          # Local reranking
+
+# --- Observability (optional) ---
+# opentelemetry-sdk>=1.24
+# arize-phoenix>=4.0
