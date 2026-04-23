@@ -19,7 +19,20 @@
       "Bash(docker compose *)",
       "Bash(curl *)",
       "Bash(docker exec *)",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'total={d[\\\\\"total\\\\\"]} items'\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'total={d[\\\\\"total\\\\\"]} items'\\)\")",
+      "Bash(xargs wc *)",
+      "Bash(python -m pytest tests/unit/test_schemas.py tests/unit/test_source_registry.py -v --tb=short)",
+      "Bash(python -m pytest tests/unit/test_rag_gateway.py tests/unit/test_investment_crew.py -v --tb=short)",
+      "Bash(python -m pytest tests/unit/ -v --tb=short)",
+      "Bash(python -m pytest tests/integration/ -v --tb=short)",
+      "Bash(python -m pytest tests/smoke/ tests/e2e/ -v --tb=short)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python -m pytest tests/ --tb=short -q)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(python *)",
+      "Bash(dir \"C:\\\\Users\\\\ORENS\\\\investment-mcp-multi-agent-system\\\\notebooks\")",
+      "Bash(dir \"C:\\\\Users\\\\ORENS\\\\investment-mcp-multi-agent-system\\\\static-site\")"
     ]
   }
 }
