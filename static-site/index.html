@@ -52,8 +52,8 @@
         <div class="metric-label">MCP Tools</div>
       </div>
       <div class="metric-card">
-        <div class="metric-value text-green counter" data-target="117" data-suffix="+">0</div>
-        <div class="metric-label">Tests</div>
+        <div class="metric-value text-green counter" data-target="210" data-suffix="">0</div>
+        <div class="metric-label">Tests Passing</div>
       </div>
       <div class="metric-card">
         <div class="metric-value text-accent counter" data-target="4" data-suffix="">0</div>
@@ -149,7 +149,7 @@
       </div>
     </div>
 
-    <div class="grid-2 mt3">
+    <div class="grid-3 mt3">
       <div class="card fade-in">
         <div class="card-label">Key Design Decision</div>
         <h3>Dual Session Strategy</h3>
@@ -159,6 +159,11 @@
         <div class="card-label">Key Design Decision</div>
         <h3>ContextVar Propagation</h3>
         <p>The <code>run_id</code> ContextVar is cloned via <code>copy_context()</code> before entering the executor — every log line throughout the full 5-agent run carries the same <code>run_id</code> for correlation.</p>
+      </div>
+      <div class="card fade-in">
+        <div class="card-label">Key Design Decision</div>
+        <h3>3 Execution Modes</h3>
+        <p><strong>RAG Only</strong> — pre-fetches all data via MCP tools, no LLM. <strong>Agent Only</strong> — full CrewAI pipeline with live LLM calls. <strong>Hybrid</strong> — pre-fetches data first, then injects it as context into agent tasks for richer synthesis.</p>
       </div>
     </div>
   </div>
@@ -179,7 +184,7 @@
         <div class="agent-name">Research Agent</div>
         <div class="agent-tools">
           <code>get_stock_price</code><br/>
-          <code>get_financial_data</code><br/>
+          <code>get_financial_statements</code><br/>
           <code>get_news_sentiment</code>
         </div>
       </div>
@@ -187,8 +192,8 @@
         <div class="agent-number">02 / Technical</div>
         <div class="agent-name">Technical Analyst</div>
         <div class="agent-tools">
-          <code>get_stock_price</code><br/>
-          <code>calculate_risk_metrics</code> (technicals)
+          <code>get_technical_indicators</code><br/>
+          <code>get_stock_price</code>
         </div>
       </div>
       <div class="agent-card fade-in">
@@ -203,7 +208,7 @@
         <div class="agent-number">04 / Risk</div>
         <div class="agent-name">Risk Analyst</div>
         <div class="agent-tools">
-          <code>calculate_risk_metrics</code><br/>
+          <code>get_risk_metrics</code><br/>
           Beta · Sharpe · VaR · Drawdown
         </div>
       </div>
@@ -218,16 +223,17 @@
     </div>
 
     <div class="card mt3 fade-in">
-      <div class="card-label">MCP Tool Gateway — 6 Tools</div>
+      <div class="card-label">MCP Tool Gateway — 6 Tools + RAG Pass</div>
       <div class="tech-stack mt1">
         <span class="tech-pill text-accent">get_stock_price</span>
-        <span class="tech-pill text-accent">get_financial_data</span>
-        <span class="tech-pill text-accent">calculate_risk_metrics</span>
+        <span class="tech-pill text-accent">get_financial_statements</span>
+        <span class="tech-pill text-accent">get_technical_indicators</span>
+        <span class="tech-pill text-accent">get_risk_metrics</span>
         <span class="tech-pill text-accent">get_news_sentiment</span>
         <span class="tech-pill text-accent">get_sector_analysis</span>
         <span class="tech-pill text-accent">save_report</span>
       </div>
-      <p class="mt2">Every tool call is validated against a <strong>Pydantic input schema</strong> before reaching the service layer. Invalid inputs raise <code>ToolExecutionError</code> — never silently passed to the LLM.</p>
+      <p class="mt2">Every tool call is validated against a <strong>Pydantic input schema</strong> before reaching the service layer. Invalid inputs raise <code>ToolExecutionError</code> — never silently passed to the LLM. The gateway also exposes <code>execute_rag_pass()</code> which calls all 6 data tools in sequence for Hybrid and RAG-only execution modes.</p>
     </div>
   </div>
 </section>
@@ -297,24 +303,24 @@
 
       <div class="tab-content active">
         <div class="grid-3">
-          <div class="card"><div class="card-label">~51 Tests</div><h3>Pure Logic</h3><p>RSI edge cases, Sharpe ratio, max drawdown, schema validation, MCP tool validation, error class hierarchy. No I/O — mocks for all external dependencies.</p></div>
-          <div class="card"><div class="card-label">Key Files</div><h3>What's Covered</h3><p><code>test_risk_calculations.py</code> — 12 tests incl. RSI div-by-zero guard<br/><code>test_mcp_tools.py</code> — 14 tests incl. gateway routing<br/><code>test_report_validator.py</code> — 5 tests for section validation</p></div>
-          <div class="card"><div class="card-label">Coverage</div><h3>Isolation Strategy</h3><div class="test-bar mt1"><div class="test-bar-fill" data-width="94%"></div></div><p class="mt1">All service calls mocked at fixture level. Tests run in milliseconds with no network requirements.</p></div>
+          <div class="card"><div class="card-label">134 Tests</div><h3>Pure Logic</h3><p>RSI edge cases, Sharpe ratio, max drawdown, schema validation, MCP tool routing, SourceRegistry thread safety, execution mode routing, RAG snapshot report builder, InvestmentCrew mode dispatch. No I/O — mocks for all external deps.</p></div>
+          <div class="card"><div class="card-label">Key Files</div><h3>What's Covered</h3><p><code>test_risk_calculations.py</code> — 16 tests incl. RSI div-by-zero guard<br/><code>test_mcp_tools.py</code> — 16 tests incl. gateway routing<br/><code>test_source_registry.py</code> — 23 tests incl. thread safety<br/><code>test_investment_crew.py</code> — 17 mode routing tests</p></div>
+          <div class="card"><div class="card-label">Coverage</div><h3>Isolation Strategy</h3><div class="test-bar mt1"><div class="test-bar-fill" data-width="94%"></div></div><p class="mt1">All service calls mocked at fixture level. Tests run in under 7 seconds with no network requirements.</p></div>
         </div>
       </div>
 
       <div class="tab-content">
         <div class="grid-3">
-          <div class="card"><div class="card-label">~39 Tests</div><h3>Real Routes</h3><p>Full FastAPI application under test via <code>httpx.AsyncClient</code> + <code>ASGITransport</code>. Auth (401/403), rate limiting config, analysis CRUD, DB repository operations.</p></div>
-          <div class="card"><div class="card-label">DB Isolation</div><h3>SQLite In-Memory</h3><p>In-memory SQLite with <code>StaticPool</code> replaces PostgreSQL. <code>dependency_overrides</code> inject the test DB session and mock gateway into every route.</p></div>
-          <div class="card"><div class="card-label">Key Files</div><h3>What's Covered</h3><p><code>test_api_auth.py</code> — 6 auth scenarios<br/><code>test_api_analysis.py</code> — 15 route tests<br/><code>test_db_repositories.py</code> — 12 CRUD tests</p></div>
+          <div class="card"><div class="card-label">52 Tests</div><h3>Real Routes</h3><p>Full FastAPI application under test via <code>httpx.AsyncClient</code> + <code>ASGITransport</code>. Auth (401/403/401), rate limiter isolation, analysis CRUD, execution mode persistence, DB repository operations, <code>/sources</code> endpoint.</p></div>
+          <div class="card"><div class="card-label">DB Isolation</div><h3>SQLite In-Memory</h3><p>In-memory SQLite with <code>StaticPool</code> replaces PostgreSQL. <code>dependency_overrides</code> inject the test DB session and mock gateway. Rate limiter storage reset between tests.</p></div>
+          <div class="card"><div class="card-label">Key Files</div><h3>What's Covered</h3><p><code>test_api_auth.py</code> — 6 auth scenarios<br/><code>test_api_analysis.py</code> — 20 route tests incl. execution modes<br/><code>test_api_sources.py</code> — 9 sources endpoint tests<br/><code>test_db_repositories.py</code> — 11 CRUD tests</p></div>
         </div>
       </div>
 
       <div class="tab-content">
         <div class="grid-3">
-          <div class="card"><div class="card-label">~17 Tests</div><h3>Startup Sanity</h3><p>All module imports verified, MCP tool registration confirmed, API defaults checked, Alembic migration files verified syntactically.</p></div>
-          <div class="card"><div class="card-label">New in 3.75</div><h3>Alembic Smoke</h3><p>Confirms <code>alembic.ini</code> exists, <code>env.py</code> is syntactically valid, initial migration file exists and contains both <code>upgrade()</code> and <code>downgrade()</code>.</p></div>
+          <div class="card"><div class="card-label">19 Tests</div><h3>Startup Sanity</h3><p>All module imports verified, MCP tool registration confirmed (6 tools by name), API defaults checked, Alembic migration files verified syntactically.</p></div>
+          <div class="card"><div class="card-label">Alembic Smoke</div><h3>Migration Checks</h3><p>Confirms <code>alembic.ini</code> exists, <code>env.py</code> is syntactically valid, initial migration file exists and contains both <code>upgrade()</code> and <code>downgrade()</code>.</p></div>
           <div class="card"><div class="card-label">Purpose</div><h3>Fast CI Gate</h3><p>Runs in under 3 seconds. Catches import errors and configuration drift before the heavier integration suite runs.</p></div>
         </div>
       </div>
