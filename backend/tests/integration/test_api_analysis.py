@@ -155,3 +155,51 @@ class TestListHistory:
     async def test_history_limit_param(self, test_client):
         resp = await test_client.get("/api/v1/analyze?limit=5")
         assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+class TestExecutionMode:
+    async def test_default_execution_mode_is_hybrid(self, test_client):
+        with patch("app.api.routes.analysis._run_crew_background"):
+            resp = await test_client.post("/api/v1/analyze", json={"ticker": "AAPL"})
+        assert resp.status_code == 202
+        data = resp.json()
+        assert data["execution_mode"] == "hybrid"
+
+    async def test_rag_only_mode_accepted(self, test_client):
+        with patch("app.api.routes.analysis._run_crew_background"):
+            resp = await test_client.post(
+                "/api/v1/analyze",
+                json={"ticker": "AAPL", "execution_mode": "rag_only"},
+            )
+        assert resp.status_code == 202
+        assert resp.json()["execution_mode"] == "rag_only"
+
+    async def test_agent_only_mode_accepted(self, test_client):
+        with patch("app.api.routes.analysis._run_crew_background"):
+            resp = await test_client.post(
+                "/api/v1/analyze",
+                json={"ticker": "AAPL", "execution_mode": "agent_only"},
+            )
+        assert resp.status_code == 202
+        assert resp.json()["execution_mode"] == "agent_only"
+
+    async def test_invalid_mode_rejected(self, test_client):
+        resp = await test_client.post(
+            "/api/v1/analyze",
+            json={"ticker": "AAPL", "execution_mode": "turbo_mode"},
+        )
+        assert resp.status_code == 422
+
+    async def test_execution_mode_persisted_in_status(self, test_client):
+        with patch("app.api.routes.analysis._run_crew_background"):
+            create_resp = await test_client.post(
+                "/api/v1/analyze",
+                json={"ticker": "TSLA", "execution_mode": "rag_only"},
+            )
+        run_id = create_resp.json()["run_id"]
+
+        status_resp = await test_client.get(f"/api/v1/analyze/{run_id}/status")
+        assert status_resp.status_code == 200
+        data = status_resp.json()
+        assert data["execution_mode"] == "rag_only"

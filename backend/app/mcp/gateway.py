@@ -54,6 +54,45 @@ class MCPGateway:
         self._registry.register(RiskMetricsTool(risk=risk))
         self._registry.register(NewsSentimentTool(news=news, market_data=market_data))
 
+    def execute_rag_pass(self, ticker: str, period: str = "1y") -> dict[str, Any]:
+        """Call all data tools and return aggregated raw data — no LLM involved."""
+        import time
+
+        # Tuple: (result_key, tool_name, payload)
+        # result_key is the short name used by report builders (no "get_" prefix)
+        tools_to_run = [
+            ("stock_price", "get_stock_price", {"ticker": ticker, "period": period, "interval": "1d"}),
+            ("financial_statements", "get_financial_statements", {"ticker": ticker, "statement_type": "all"}),
+            ("technical_indicators", "get_technical_indicators", {"ticker": ticker, "period": "6mo"}),
+            ("sector_analysis", "get_sector_analysis", {"ticker": ticker}),
+            ("risk_metrics", "get_risk_metrics", {"ticker": ticker, "period": period}),
+            ("news_sentiment", "get_news_sentiment", {"ticker": ticker, "days": 14}),
+        ]
+
+        results: dict[str, Any] = {}
+        errors: dict[str, str] = {}
+
+        for result_key, tool_name, payload in tools_to_run:
+            t0 = time.perf_counter()
+            try:
+                data = self.call(tool_name, payload)
+                data["_tool"] = result_key
+                data["_latency_ms"] = round((time.perf_counter() - t0) * 1000, 1)
+                results[result_key] = data
+            except Exception as exc:
+                errors[result_key] = str(exc)
+                logger.warning("RAG pass tool failed", extra={"tool_name": tool_name, "error": str(exc)})
+
+        return {
+            "ticker": ticker,
+            "period": period,
+            "mode": "rag_only",
+            "sources_used": list(results.keys()),
+            "sources_failed": list(errors.keys()),
+            "data": results,
+            "errors": errors,
+        }
+
     def call(self, tool_name: str, payload: dict[str, Any]) -> dict[str, Any]:
         logger.info("MCP tool call", extra={"tool_name": tool_name})
         try:

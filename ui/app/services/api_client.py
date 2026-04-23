@@ -24,8 +24,17 @@ class BackendAPIClient:
         resp.raise_for_status()
         return resp.json()
 
-    def submit_analysis(self, ticker: str, period: str = "1y") -> dict:
-        return self._post("/analyze", {"ticker": ticker, "period": period})
+    def submit_analysis(
+        self,
+        ticker: str,
+        period: str = "1y",
+        execution_mode: str = "hybrid",
+    ) -> dict:
+        return self._post("/analyze", {
+            "ticker": ticker,
+            "period": period,
+            "execution_mode": execution_mode,
+        })
 
     def get_status(self, run_id: str) -> dict:
         return self._get(f"/analyze/{run_id}/status")
@@ -40,6 +49,12 @@ class BackendAPIClient:
 
     def get_history(self, limit: int = 20) -> dict:
         return self._get(f"/analyze?limit={limit}")
+
+    def get_sources(self) -> dict:
+        return self._get("/sources")
+
+    def get_sources_status(self) -> dict:
+        return self._get("/sources/status")
 
     def health(self) -> dict:
         return self._get("/health")

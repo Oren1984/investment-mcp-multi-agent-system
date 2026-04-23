@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import httpx
 
 from app.core.config import settings
@@ -13,9 +15,19 @@ class NewsService:
     BASE_URL = "https://newsapi.org/v2/everything"
 
     def get_news_sentiment(self, ticker: str, company_name: str, days: int = 7) -> dict:
+        from app.services.source_registry import SourceStatus, get_source_registry
+
         if not settings.news_api_key:
+            get_source_registry().update_status(
+                "newsapi",
+                SourceStatus.WARN,
+                notes="Key not configured — using keyword sentiment fallback",
+            )
             return self._fallback_response(ticker)
 
+        get_source_registry().update_status("newsapi", SourceStatus.OK, notes="Live headlines from newsapi.org")
+
+        t0 = time.perf_counter()
         try:
             from datetime import datetime, timedelta, timezone
 
@@ -37,8 +49,10 @@ class NewsService:
 
             articles = data.get("articles", [])
             headlines = [a.get("title", "") for a in articles if a.get("title")]
-
             sentiment_score = self._simple_sentiment(headlines)
+
+            latency = (time.perf_counter() - t0) * 1000
+            get_source_registry().record_fetch("newsapi", latency_ms=latency, records=len(headlines))
 
             return {
                 "ticker": ticker,
@@ -47,17 +61,30 @@ class NewsService:
                 "article_count": len(headlines),
                 "headlines": headlines[:5],
                 "sentiment_score": sentiment_score,
-                "sentiment_label": "POSITIVE" if sentiment_score > 0.1 else "NEGATIVE" if sentiment_score < -0.1 else "NEUTRAL",
+                "sentiment_label": (
+                    "POSITIVE" if sentiment_score > 0.1
+                    else "NEGATIVE" if sentiment_score < -0.1
+                    else "NEUTRAL"
+                ),
+                "_source": "newsapi",
             }
         except ExternalAPIError:
+            get_source_registry().record_fetch("newsapi", error="API error")
             raise
         except Exception as e:
             logger.warning(f"news_service error for {ticker}: {e}")
+            get_source_registry().record_fetch("newsapi", error=str(e))
             return self._fallback_response(ticker)
 
     def _simple_sentiment(self, headlines: list[str]) -> float:
-        positive_words = {"gain", "rise", "beat", "surged", "record", "growth", "profit", "strong", "positive", "up", "high"}
-        negative_words = {"loss", "fall", "miss", "drop", "decline", "weak", "negative", "down", "low", "cut", "risk", "concern"}
+        positive_words = {
+            "gain", "rise", "beat", "surged", "record", "growth", "profit",
+            "strong", "positive", "up", "high",
+        }
+        negative_words = {
+            "loss", "fall", "miss", "drop", "decline", "weak", "negative",
+            "down", "low", "cut", "risk", "concern",
+        }
 
         if not headlines:
             return 0.0
@@ -67,7 +94,7 @@ class NewsService:
             words = set(h.lower().split())
             pos = len(words & positive_words)
             neg = len(words & negative_words)
-            total += (pos - neg)
+            total += pos - neg
 
         return round(total / len(headlines), 2)
 
@@ -80,5 +107,6 @@ class NewsService:
             "headlines": [],
             "sentiment_score": 0.0,
             "sentiment_label": "UNAVAILABLE",
-            "note": "News API key not configured",
+            "note": "News API key not configured — sentiment not available",
+            "_source": "keyword_fallback",
         }

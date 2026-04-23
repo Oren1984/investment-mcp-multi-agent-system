@@ -210,6 +210,7 @@ async def test_client(async_db_session, mock_gateway) -> AsyncGenerator[AsyncCli
     from app.main import create_app
     from app.db.session import get_async_session
     from app.mcp.gateway import get_gateway
+    from app.api.limiter import limiter
 
     test_app = create_app()
 
@@ -221,6 +222,12 @@ async def test_client(async_db_session, mock_gateway) -> AsyncGenerator[AsyncCli
 
     test_app.dependency_overrides[get_async_session] = override_db
     test_app.dependency_overrides[get_gateway] = override_gateway
+
+    # Reset rate limiter storage between tests so counters don't bleed over
+    try:
+        limiter._storage.reset()
+    except Exception:
+        pass
 
     async with AsyncClient(transport=ASGITransport(app=test_app), base_url="http://test") as client:
         yield client

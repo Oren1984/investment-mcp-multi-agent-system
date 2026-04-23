@@ -1,14 +1,30 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
 
+class ExecutionMode(str, Enum):
+    RAG_ONLY = "rag_only"
+    AGENT_ONLY = "agent_only"
+    HYBRID = "hybrid"
+
+
 class AnalysisRequest(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=10, description="Stock ticker symbol")
-    period: str = Field("1y", description="Historical period for analysis: 1mo, 3mo, 6mo, 1y, 2y, 5y")
+    period: str = Field("1y", description="Historical period: 1mo, 3mo, 6mo, 1y, 2y, 5y")
+    execution_mode: ExecutionMode = Field(
+        ExecutionMode.HYBRID,
+        description=(
+            "Execution mode: "
+            "'rag_only' = data retrieval only (no LLM); "
+            "'agent_only' = full agent orchestration with LLM; "
+            "'hybrid' = pre-fetch data via RAG then run agents with that context"
+        ),
+    )
 
     @field_validator("ticker")
     @classmethod
@@ -28,6 +44,7 @@ class AnalysisResponse(BaseModel):
     run_id: str
     ticker: str
     status: str
+    execution_mode: str
     created_at: datetime
 
 
@@ -35,6 +52,7 @@ class AnalysisStatusResponse(BaseModel):
     run_id: str
     ticker: str
     status: str
+    execution_mode: str | None = None
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -47,6 +65,7 @@ class ReportResponse(BaseModel):
     ticker: str
     content: str
     structured: dict[str, Any] | None = None
+    execution_mode: str | None = None
     created_at: datetime
 
 
@@ -54,6 +73,7 @@ class HistoryItem(BaseModel):
     run_id: str
     ticker: str
     status: str
+    execution_mode: str | None = None
     created_at: datetime
     completed_at: datetime | None = None
     has_report: bool = False

@@ -99,7 +99,15 @@ def build_risk_task(agent: Agent, ticker: str) -> Task:
     )
 
 
-def build_report_task(agent: Agent, ticker: str, run_id: str) -> Task:
+def build_report_task(agent: Agent, ticker: str, run_id: str, rag_context: str = "") -> Task:
+    pre_context_block = ""
+    if rag_context:
+        pre_context_block = (
+            "\n\n**Pre-fetched raw data context (collected before agent execution):**\n"
+            f"{rag_context}\n\n"
+            "Use this raw data context alongside the agent analysis outputs above to produce a richer report."
+        )
+
     return Task(
         description=(
             f"Write the final investment report for {ticker} by synthesizing all previous analyst outputs. "
@@ -117,6 +125,7 @@ def build_report_task(agent: Agent, ticker: str, run_id: str) -> Task:
             "key catalysts to watch, and conditions that would change the view. "
             "After writing the report, save it using the save_report tool with "
             f"run_id='{run_id}', ticker='{ticker}', and the full report as content."
+            f"{pre_context_block}"
         ),
         expected_output=(
             "A complete, professional investment memo in markdown format covering all sections. "

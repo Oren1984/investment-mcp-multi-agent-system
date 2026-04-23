@@ -2,7 +2,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.analysis import AnalysisRequest, HistoryItem, ReportResponse
+from app.schemas.analysis import AnalysisRequest, ExecutionMode, HistoryItem, ReportResponse
 from app.schemas.common import HealthResponse, ReadyResponse
 
 
@@ -40,6 +40,31 @@ class TestAnalysisRequest:
     def test_period_invalid_type(self):
         with pytest.raises(ValidationError):
             AnalysisRequest(ticker="AAPL", period="daily")
+
+    def test_default_execution_mode_is_hybrid(self):
+        req = AnalysisRequest(ticker="AAPL")
+        assert req.execution_mode == ExecutionMode.HYBRID
+
+    def test_rag_only_execution_mode(self):
+        req = AnalysisRequest(ticker="AAPL", execution_mode="rag_only")
+        assert req.execution_mode == ExecutionMode.RAG_ONLY
+
+    def test_agent_only_execution_mode(self):
+        req = AnalysisRequest(ticker="AAPL", execution_mode="agent_only")
+        assert req.execution_mode == ExecutionMode.AGENT_ONLY
+
+    def test_invalid_execution_mode_rejected(self):
+        with pytest.raises(ValidationError):
+            AnalysisRequest(ticker="AAPL", execution_mode="invalid_mode")
+
+
+class TestExecutionMode:
+    def test_all_modes_defined(self):
+        modes = {m.value for m in ExecutionMode}
+        assert modes == {"rag_only", "agent_only", "hybrid"}
+
+    def test_mode_is_string_enum(self):
+        assert isinstance(ExecutionMode.HYBRID.value, str)
 
 
 class TestHealthResponse:

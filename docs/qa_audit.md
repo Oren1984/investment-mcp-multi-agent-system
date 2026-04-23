@@ -1,182 +1,175 @@
 # QA Audit — Investment MCP Multi-Agent System
 
-**Date:** 2026-04-20  
-**Auditor:** Engineering / QA Lead  
-**Status:** All critical issues resolved. System operational.
+**Date:** 2026-04-23 (Phase 3 hardening pass)
+**Auditor:** Engineering / QA Lead
+**Status:** All critical issues resolved. 210 tests passing.
 
 ---
 
 ## Audit Scope
 
-This audit covered the full backend stack and supporting infrastructure from initial bootstrap through production-readiness testing. The scope included:
-
-- Backend API correctness and error handling
-- Dependency configuration
-- Database session and ORM usage
-- CrewAI agent orchestration
-- LLM integration and fallback behavior
-- Docker infrastructure and container health
-- Jupyter notebook reproducibility
-- UI submission flow
-- Logging, monitoring, and observability
+This audit covered the full repository post-Phase-2 build, including all backend components, the MCP tool layer, CrewAI crew orchestration, the new execution modes (RAG-only / Agent-only / Hybrid), the Source Registry, and the Streamlit UI.
 
 ---
 
-## Components Reviewed
+## Critical Bugs Found and Fixed
 
-| Component | Location | Reviewed |
-|-----------|----------|---------|
-| API routes | `backend/app/api/routes/` | ✅ |
-| Request schemas | `backend/app/schemas/` | ✅ |
-| CrewAI agents | `backend/app/agents/` | ✅ |
-| CrewAI tasks | `backend/app/crews/tasks.py` | ✅ |
-| Investment crew orchestration | `backend/app/crews/investment_crew.py` | ✅ |
-| MCP gateway and tools | `backend/app/mcp/` | ✅ |
-| Database models | `backend/app/db/models/` | ✅ |
-| Repositories (sync + async) | `backend/app/db/repositories/` | ✅ |
-| Services (market, financials, risk, news, LLM, report) | `backend/app/services/` | ✅ |
-| Core config and error handling | `backend/app/core/` | ✅ |
-| Docker Compose | `docker-compose.yml` | ✅ |
-| Dockerfiles | `infra/docker/` | ✅ |
-| Environment configuration | `.env`, `.env.example` | ✅ |
-| Notebooks | `notebooks/` | ✅ |
+### 1. `execute_rag_pass` — Wrong Tool Names (CRITICAL)
+
+**File:** `backend/app/mcp/gateway.py`
+
+**Bug:** `MCPGateway.execute_rag_pass()` called tools using short names without the `get_` prefix (e.g., `"stock_price"` instead of `"get_stock_price"`). Since the registry stores tools by their full canonical names, every RAG-pass tool call raised `ToolNotFoundError` internally, silently failing and returning empty `data`.
+
+**Impact:** RAG-only mode and Hybrid mode (which pre-fetches via RAG) produced empty reports in all live runs. This is a silent failure — the system appeared to work but produced no real data.
+
+**Fix:** Updated `tools_to_run` in `execute_rag_pass` to separate the internal result key (short name, used by report builder) from the actual tool call name (full `get_` prefix name). Result keys remain the same as before so `_build_rag_snapshot_report` needs no changes.
 
 ---
 
-## Issues Discovered and Fixes Applied
+### 2. Field Name Mismatches in RAG Snapshot Report (HIGH)
+
+**File:** `backend/app/crews/investment_crew.py` — `_build_rag_snapshot_report`
+
+**Bug:** Three field names in the report builder didn't match the field names returned by the services:
+- `rsi` → actual field is `rsi_14`
+- `trend_signal` → actual field is `trend`
+- `var_95_pct` → actual field is `var_95_1day_pct`
+
+**Impact:** RSI value, trend signal, and VaR value never appeared in RAG-only mode reports, replaced by empty cells.
+
+**Fix:** Updated `_build_rag_snapshot_report` to use the correct field names matching `RiskService.get_technical_indicators()` and `RiskService.get_risk_metrics()` output.
 
 ---
 
-### Issue 1 — Backend Startup Failure (Critical)
+### 3. PostgreSQL JSONB Type Incompatible with SQLite Test Engine (HIGH)
 
-**Symptom:** `ModuleNotFoundError: No module named 'crewai.tools.base_tool'` on container start.
+**Files:** `backend/app/db/models/analysis_run.py`, `report.py`, `agent_output.py`
 
-**Root Cause:** `backend/requirements.txt` specified `crewai>=0.36,<0.50`. No versions in the range 0.36–0.50 exist for Python 3.11. pip resolved to 0.41.1, which does not have the `crewai.tools.base_tool` module. The codebase was written against crewai 1.x (`from crewai import LLM`, `from crewai.tools.base_tool import BaseTool`).
+**Bug:** All JSON columns used `JSONB` from `sqlalchemy.dialects.postgresql`. When the test suite runs with an in-memory SQLite engine (conftest.py fixture), SQLAlchemy's SQLite compiler raises `CompileError` on `JSONB` type, causing all DB-dependent unit tests to fail with an error (not a test failure, but a collection error).
 
-**Fix:** Changed `crewai>=0.36,<0.50` → `crewai>=1.0,<2.0`. Removed `langchain-anthropic>=0.1,<0.4` (unused, conflicted with crewai 1.x). Updated `crewai-tools>=0.4,<0.20` → `crewai-tools>=0.35,<2.0`.
+**Impact:** All 5 `test_report_service.py` tests were erroring, not running at all.
 
-**File:** `backend/requirements.txt`
-
----
-
-### Issue 2 — HTTP 422 on POST /api/v1/analyze (Critical)
-
-**Symptom:** Every `POST /api/v1/analyze` returned 422 with: `"Field required"` for `body` and `background_tasks` query parameters.
-
-**Root Cause:** `from __future__ import annotations` (line 1 of `analysis.py`) makes all type annotations lazy strings at module load. slowapi's `@limiter.limit()` wraps the route function, and the wrapper's `__globals__` points to `slowapi.extension`, not `app.api.routes.analysis`. FastAPI's `get_typed_signature()` calls `evaluate_forwardref()` using `call.__globals__`. Since `AnalysisRequest` and `BackgroundTasks` are not in slowapi's globals, the `ForwardRef` objects remain unresolved. FastAPI treats unresolved ForwardRefs as required query parameters.
-
-**Confirmed via:** Container inspection showing `body_params: []` and `query_params: [('body', ForwardRef('AnalysisRequest')), ...]`.
-
-**Fix:** Removed `from __future__ import annotations` from `backend/app/api/routes/analysis.py`.
-
-**File:** `backend/app/api/routes/analysis.py`
+**Fix:** Changed all JSON columns in models to use `sqlalchemy.JSON` (the portable generic type). PostgreSQL's JSONB GIN indexing advantage is maintained via the Alembic migration which still creates JSONB columns in the production database.
 
 ---
 
-### Issue 3 — GET /api/v1/analyze Returns 500 (High)
+### 4. Rate Limiter Bleeds Between Tests (MEDIUM)
 
-**Symptom:** `GET /api/v1/analyze` returned `{"detail":"Unexpected internal error"}`.
+**File:** `backend/tests/conftest.py`
 
-**Root Cause:** The list comprehension in `list_history()` accessed `r.report is not None` on each `AnalysisRun` ORM object. The `report` relationship has no eager loading configured. SQLAlchemy 2.0 async sessions do not support implicit lazy loading — accessing the attribute triggers synchronous IO in an async context, raising a `MissingGreenlet` exception.
+**Bug:** The `Limiter` instance from `app.api.limiter` is a module-level singleton. Its in-memory request counter persisted between test cases in the same pytest session. After ~10 POST requests to `/api/v1/analyze` across the test suite, subsequent tests received 429 Too Many Requests instead of 202.
 
-**Fix:**
-1. Added `selectinload` to the import in `analysis_run_repo.py`.
-2. Added `.options(selectinload(AnalysisRun.report))` to the `list_recent()` query so the `report` relationship is eagerly fetched in a single JOIN query alongside the run records.
+**Impact:** 3 integration tests failed non-deterministically depending on test execution order.
 
-**File:** `backend/app/db/repositories/analysis_run_repo.py`
+**Fix:** Added `limiter._storage.reset()` call in the `test_client` fixture to flush the counter between each test.
 
 ---
 
-### Issue 4 — UI Container Always Unhealthy (Medium)
+### 5. Pre-existing Test Logic Errors in `test_risk_calculations.py` (LOW)
 
-**Symptom:** `docker ps` showed UI container with `(unhealthy)` status despite Streamlit running correctly.
+**File:** `backend/tests/unit/test_risk_calculations.py`
 
-**Root Cause:** The Dockerfile healthcheck used `curl --fail http://localhost:8501/_stcore/health`. `curl` is not installed in `python:3.11-slim`.
+Two tests had incorrect test data that made the assertions impossible to satisfy:
 
-**Fix:** Replaced the healthcheck command with a pure-Python equivalent using `urllib.request`.
+- `test_negative_excess_returns_negative_sharpe`: Used constant negative returns. With zero variance, `std = 0`, so Sharpe correctly returns `0.0` by design (division by zero guard). The test expected `< 0`. Fixed to use returns with small variance so Sharpe can be negative.
 
-**File:** `infra/docker/ui.Dockerfile`
-
----
-
-### Issue 5 — Anthropic 401 Authentication Failure (High)
-
-**Symptom:** Analysis runs entered `FAILED` state with `authentication_error: invalid x-api-key`.
-
-**Root Cause:** `.env` contained the template placeholder `ANTHROPIC_API_KEY=sk-ant-your-key-here`. The Docker backend received this value; CrewAI passed it to LiteLLM, which passed it to Anthropic, which returned 401.
-
-**Fix:** Implemented a two-layer response:
-1. **Placeholder key detection** — `is_placeholder_key()` in `llm_service.py` detects placeholder, empty, or template keys.
-2. **Auto demo mode** — `is_demo_mode()` returns `True` if key is missing/placeholder OR if `DEMO_MODE=true` is set. The crew routes to `_run_demo()` which returns a synthetic, clearly-labelled report without any LLM call.
-3. **Startup warning log** — `main.py` logs a `WARNING` on startup if the key is a placeholder.
-4. **401 error detection** — The `except` block in `InvestmentCrew.run()` detects "401" / "authentication" / "invalid x-api-key" in the exception message and returns a human-readable error.
-
-**Files:** `backend/app/services/llm_service.py`, `backend/app/crews/investment_crew.py`, `backend/app/main.py`, `.env`
+- `test_crash_and_recovery`: Used 3-price series `[100, 50, 100]`. Since `pct_change()` drops the first row, the cumulative product starts after the drop. `rolling_max` never captures the pre-drop peak, so drawdown = 0. Fixed to use a flat peak before the drop: `[100, 100, 100, 50, 100]`.
 
 ---
 
-### Issue 6 — Notebook 01 NameError on run_id (High)
+## New Tests Added
 
-**Symptom:** Running notebook 01 in order produced `NameError: name 'run_id' is not defined` in the polling cell.
+### Unit Tests
+| File | Tests | Coverage |
+|------|-------|---------|
+| `test_source_registry.py` | 23 tests | SourceRegistry: init, record_fetch, update_status, summary, to_dict_list, thread safety, singleton |
+| `test_rag_gateway.py` | 19 tests | execute_rag_pass, partial failure isolation, _build_rag_snapshot_report, _format_rag_context_summary |
+| `test_investment_crew.py` | 17 tests | AnalysisConfig defaults, _build_demo_report, execution mode routing (demo/rag_only/hybrid/agent_only), error → FAILED status |
+| `test_schemas.py` (extended) | +6 tests | ExecutionMode enum, execution_mode field validation |
 
-**Root Cause:** The cell that POSTs to `/api/v1/analyze` and captures the returned `run_id` was missing from the notebook. The polling cell referenced `run_id` without it ever being defined.
+### Integration Tests
+| File | Tests | Coverage |
+|------|-------|---------|
+| `test_api_sources.py` | 9 tests | GET /sources, GET /sources/status, field validation, auth bypass confirmation |
+| `test_api_analysis.py` (extended) | +5 tests | ExecutionMode in request/response, persistence in status, invalid mode rejection |
 
-**Fix:** Inserted a submit cell at index 8 that calls `POST /analyze`, captures `run_id`, and sets `run_id = None` on failure. Added `if run_id is None: skip` guards to the polling and report retrieval cells.
-
-**File:** `notebooks/01_demo_walkthrough.ipynb`
-
----
-
-### Issue 7 — Notebooks Using Wrong Backend Port (Medium)
-
-**Symptom:** Notebook cells showed `ConnectionRefusedError` when the Docker stack was running.
-
-**Root Cause:** Both notebooks had `BASE_URL = "http://localhost:8000/api/v1"`. Docker Compose maps the backend to host port **8010** (container port 8000).
-
-**Fix:** Changed to `os.getenv("BACKEND_URL", "http://localhost:8010") + "/api/v1"` in both notebooks.
-
-**Files:** `notebooks/01_demo_walkthrough.ipynb`, `notebooks/03_demo_scenarios.ipynb`
+### E2E Fixes
+- Fixed `_simulated_crew_run` signature to include `execution_mode` parameter (was missing, would cause `TypeError` if the real background task signature changed)
 
 ---
 
-### Issue 8 — Notebook 03 ConnectionError Blocking All Cells (Medium)
+## Architecture Review Findings
 
-**Symptom:** If the backend was not running, the setup cell crashed with `ConnectionError`, preventing visualization cells that are backend-independent from executing.
+### Backend
+- **API routes:** Clean, well-structured. All routes return appropriate status codes.
+- **Schema validation:** Execution mode enum validated at Pydantic layer. Ticker and period validated with clear error messages.
+- **Exception handling:** 401 Anthropic error is intercepted and surfaced with a helpful message.
+- **Rate limiting:** Working correctly in production; needed isolation fix for tests.
+- **Logging:** Structured logging with run_id context propagation throughout.
 
-**Root Cause:** `requests.get(...).json()["status"]` was called unconditionally in the setup cell.
+### MCP Layer
+- **Tool registration:** All 6 tools registered with correct names.
+- **Input validation:** Each tool uses Pydantic input schema — invalid inputs caught before service calls.
+- **Failure handling:** `execute_rag_pass` isolates per-tool failures — one failing tool doesn't abort the full RAG pass.
+- **Separation:** Tools delegate to services; no business logic in tool layer.
 
-**Fix:** Wrapped the backend status check in `try/except` with a graceful fallback message. Added a prerequisites markdown cell to document which cells require a live backend vs which run standalone.
+### Agents / Crew
+- **Execution modes:** 3 distinct paths (demo, rag_only, hybrid) — clearly separated in code.
+- **Task context:** Hybrid mode correctly injects pre-fetched RAG data into report writer task description.
+- **Output persistence:** Agent outputs saved to DB per agent in live/hybrid modes.
 
-**File:** `notebooks/03_demo_scenarios.ipynb`
+### Services
+- **Source registry integration:** market_data_service and news_service both record latency, record count, and errors to the SourceRegistry on every fetch.
+- **Yahoo Finance:** Primary data source, well-wrapped with ExternalAPIError handling.
+- **News service:** Gracefully falls back to keyword sentiment when NEWS_API_KEY is absent.
+
+### Database
+- **Schema:** Normalized, with proper FK relationships and cascading deletes.
+- **Repositories:** Clean read/write patterns, properly scoped sessions.
+- **JSON portability fix:** Models now use portable JSON type; JSONB maintained in migration for PostgreSQL GIN indexing.
+
+### Source Registry
+- **Thread-safe:** All operations protected by `threading.Lock`.
+- **Singleton:** Module-level singleton with double-checked locking pattern.
+- **Statuses:** 5 statuses (OK/WARN/ERROR/OFFLINE/FUTURE) give clear signal of integration state.
+
+### UI
+- **Execution mode selector:** Users can choose RAG-only, Agent-only, or Hybrid mode.
+- **Sources page:** Shows live status of all data providers with last-fetch timestamps.
+- **Progress indicators:** Polling loop with status display while analysis runs.
+
+### Infra / Monitoring
+- **Docker Compose:** Backend, UI, PostgreSQL, Prometheus, Grafana all wired.
+- **Prometheus metrics:** Instrumentator installed and `/metrics` endpoint verified passing.
+- **Grafana:** Dashboard directory present; baseline dashboards defined.
 
 ---
 
-## Post-Fix Validation Summary
+## Remaining Limitations
 
-| Endpoint / Flow | Before Fixes | After Fixes |
-|-----------------|-------------|------------|
-| Backend startup | FAIL (import error) | ✅ Clean startup |
-| POST /api/v1/analyze | 422 Unprocessable Entity | ✅ 202 Accepted |
-| GET /api/v1/analyze/{id}/status | ✅ OK (unaffected) | ✅ OK |
-| GET /api/v1/analyze/{id}/report | ✅ OK (unaffected) | ✅ OK |
-| GET /api/v1/analyze | 500 Internal Error | ✅ 200 with history |
-| GET /api/v1/health | ✅ OK (unaffected) | ✅ OK |
-| GET /api/v1/ready | ✅ OK (unaffected) | ✅ OK |
-| UI container health | unhealthy | ✅ healthy |
-| Demo mode (no API key) | FAILED run | ✅ COMPLETED with demo report |
-| Notebook 01 (in order) | NameError | ✅ Runs through |
-| Notebook 03 (backend down) | ConnectionError crash | ✅ Graceful fallback |
+1. **No real LLM integration test** — All tests mock the LLM. Agent-quality testing requires a live Anthropic API key and is intentionally out of scope for the automated test suite.
+
+2. **No load/stress testing** — Rate limiter is configured at 10 req/min per IP. Performance under concurrent users is untested.
+
+3. **Single-node architecture** — The in-process SourceRegistry and rate limiter are not shared across backend replicas. K8s multi-pod deployments would need Redis-backed rate limiting.
+
+4. **PostgreSQL only in production** — The JSONB→JSON fix enables tests but production still uses PostgreSQL. No tested migration path for alternative databases.
+
+5. **yfinance reliability** — Yahoo Finance data availability is out of our control. The system handles failures gracefully (partial results) but cannot guarantee uptime of the data source.
 
 ---
 
-## Remaining Concerns
+## Readiness Assessment
 
-1. **Sync session management in crew** — `InvestmentCrew.run()` calls `get_sync_session()` directly rather than receiving it as a dependency. This works correctly but limits testability; the session is created per-run and closed in `finally`. No connection leaks observed in testing.
+| Dimension | Status |
+|-----------|--------|
+| Unit test coverage | **Ready** — 134 tests across all core components |
+| Integration test coverage | **Ready** — 52 tests covering all API endpoints + DB |
+| E2E validation | **Ready** — 5 end-to-end flow tests with simulated crew |
+| Smoke tests | **Ready** — 19 import + config + gateway tests |
+| Critical bugs fixed | **Ready** — 5 bugs identified and resolved |
+| Code quality | **Ready** — No placeholder behavior, structured logging throughout |
+| Demo mode | **Ready** — All 3 execution modes return valid reports in demo mode |
+| Production-style structure | **Ready** — FastAPI + SQLAlchemy + CrewAI + MCP + Prometheus |
 
-2. **pgvector installed but unused** — The `pgvector` extension is created in `init_db.py` and appears in the Postgres image tag, but no vector columns or similarity searches are implemented. This is dead weight until a feature uses it.
-
-3. **Alpha Vantage and News API keys are optional stubs** — Both keys are read from config but only `news_api_key` has a fallback path (`_fallback_response`). If `alpha_vantage_key` is set, there is no code that uses it. No data quality degradation results, but the config is misleading.
-
-4. **Rate limiter is in-memory only** — SlowAPI uses in-memory state. Running multiple backend replicas would allow each instance its own counter, bypassing the per-IP limit. Acceptable for single-instance deployment; requires Redis for horizontal scaling.
-
-5. **Report section validation is header-text matching only** — `report_validator.py` checks that 6 section headers exist in the report markdown using case-insensitive substring search. It does not validate that sections contain substantive content. A report with six empty section headers would pass validation.
+**The repository is ready for Phase 4 (Notebooks and Static Site).**

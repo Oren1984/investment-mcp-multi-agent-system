@@ -95,8 +95,11 @@ class TestSharpeRatio:
         assert sharpe > 0
 
     def test_negative_excess_returns_negative_sharpe(self):
-        """Returns below risk-free rate → negative Sharpe."""
-        returns = pd.Series([-0.001] * 252)
+        """Returns well below risk-free rate with variance → negative Sharpe."""
+        # Mix of negative returns with small variance so std > 0
+        import random
+        random.seed(7)
+        returns = pd.Series([-0.003 + random.uniform(-0.001, 0.001) for _ in range(252)])
         sharpe = self._compute_sharpe(returns)
         assert sharpe < 0
 
@@ -128,8 +131,9 @@ class TestMaxDrawdown:
         assert abs(drawdown.min()) < 1e-10
 
     def test_crash_and_recovery(self):
-        """50% crash should produce -50% drawdown."""
-        prices = pd.Series([100.0, 50.0, 100.0])
+        """50% crash (after a stable peak) should produce -50% drawdown."""
+        # Need a flat peak before the crash so rolling_max captures the high
+        prices = pd.Series([100.0, 100.0, 100.0, 50.0, 100.0])
         returns = prices.pct_change().dropna()
         cum = (1 + returns).cumprod()
         rolling_max = cum.cummax()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import datetime
 
 import pandas as pd
@@ -13,13 +14,15 @@ logger = get_logger(__name__)
 
 class MarketDataService:
     def get_price_history(self, ticker: str, period: str = "1y", interval: str = "1d") -> dict:
+        from app.services.source_registry import get_source_registry
+        t0 = time.perf_counter()
         try:
             t = yf.Ticker(ticker)
             df: pd.DataFrame = t.history(period=period, interval=interval)
             if df.empty:
                 raise ExternalAPIError(f"No price data for {ticker}")
             df.index = df.index.strftime("%Y-%m-%d")
-            return {
+            result = {
                 "ticker": ticker,
                 "period": period,
                 "interval": interval,
@@ -28,18 +31,26 @@ class MarketDataService:
                 "price_change_pct": float(
                     (df["Close"].iloc[-1] - df["Close"].iloc[0]) / df["Close"].iloc[0] * 100
                 ),
+                "_source": "yahoo_finance",
             }
+            latency = (time.perf_counter() - t0) * 1000
+            get_source_registry().record_fetch("yahoo_finance", latency_ms=latency, records=len(df))
+            return result
         except ExternalAPIError:
+            get_source_registry().record_fetch("yahoo_finance", error=f"No price data for {ticker}")
             raise
         except Exception as e:
             logger.exception("market_data error", extra={"ticker": ticker})
+            get_source_registry().record_fetch("yahoo_finance", error=str(e))
             raise ExternalAPIError(f"Failed to fetch price data for {ticker}: {e}") from e
 
     def get_company_info(self, ticker: str) -> dict:
+        from app.services.source_registry import get_source_registry
+        t0 = time.perf_counter()
         try:
             t = yf.Ticker(ticker)
             info = t.info
-            return {
+            result = {
                 "ticker": ticker,
                 "company_name": info.get("longName", ""),
                 "sector": info.get("sector", ""),
@@ -54,12 +65,19 @@ class MarketDataService:
                 "52w_low": info.get("fiftyTwoWeekLow"),
                 "avg_volume": info.get("averageVolume"),
                 "description": info.get("longBusinessSummary", "")[:500],
+                "_source": "yahoo_finance",
             }
+            latency = (time.perf_counter() - t0) * 1000
+            get_source_registry().record_fetch("yahoo_finance", latency_ms=latency, records=1)
+            return result
         except Exception as e:
             logger.exception("company_info error", extra={"ticker": ticker})
+            get_source_registry().record_fetch("yahoo_finance", error=str(e))
             raise ExternalAPIError(f"Failed to fetch company info for {ticker}: {e}") from e
 
     def get_sector_comparison(self, ticker: str, sector_etf: str | None = None) -> dict:
+        from app.services.source_registry import get_source_registry
+        t0 = time.perf_counter()
         try:
             t = yf.Ticker(ticker)
             info = t.info
@@ -93,15 +111,21 @@ class MarketDataService:
                 (etf_hist["Close"].iloc[-1] - etf_hist["Close"].iloc[0]) / etf_hist["Close"].iloc[0] * 100
             )
 
-            return {
+            result = {
                 "ticker": ticker,
                 "sector": sector,
                 "sector_etf": etf,
                 "stock_1y_return_pct": round(stock_return, 2),
                 "sector_1y_return_pct": round(etf_return, 2),
                 "relative_performance_pct": round(stock_return - etf_return, 2),
+                "_source": "yahoo_finance",
             }
+            latency = (time.perf_counter() - t0) * 1000
+            get_source_registry().record_fetch("yahoo_finance", latency_ms=latency, records=2)
+            return result
         except ExternalAPIError:
+            get_source_registry().record_fetch("yahoo_finance", error=f"Sector comparison failed for {ticker}")
             raise
         except Exception as e:
+            get_source_registry().record_fetch("yahoo_finance", error=str(e))
             raise ExternalAPIError(f"Failed sector comparison for {ticker}: {e}") from e

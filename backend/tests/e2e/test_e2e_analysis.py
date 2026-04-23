@@ -21,7 +21,7 @@ from uuid import uuid4
 import pytest
 
 
-async def _simulated_crew_run(run_id: str, ticker: str, period: str) -> None:
+async def _simulated_crew_run(run_id: str, ticker: str, period: str, execution_mode: str = "hybrid") -> None:
     """
     Simulates the full crew execution pipeline via the real DB session.
     This validates the DB read/write flow without hitting real external APIs.

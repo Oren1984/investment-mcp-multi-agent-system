@@ -31,12 +31,26 @@ except Exception as e:
     st.error(f"Could not fetch status for `{run_id}`: {e}")
     st.stop()
 
-col1, col2, col3 = st.columns(3)
+# ---------------------------------------------------------------------------
+# Status header
+# ---------------------------------------------------------------------------
+MODE_LABELS = {
+    "rag_only": ("📊", "RAG Only"),
+    "agent_only": ("🤖", "Agent Only"),
+    "hybrid": ("⚡", "Hybrid"),
+}
+
+execution_mode = status_data.get("execution_mode") or "hybrid"
+mode_icon, mode_label = MODE_LABELS.get(execution_mode, ("⚡", execution_mode.replace("_", " ").title()))
+
+col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Ticker", status_data.get("ticker", "—"))
 with col2:
     render_status_badge(status_data.get("status", ""))
 with col3:
+    st.metric("Mode", f"{mode_icon} {mode_label}")
+with col4:
     st.metric("Started", fmt_datetime(status_data.get("started_at")))
 
 render_progress_bar(status_data.get("status", ""))
@@ -59,6 +73,29 @@ elif status == "COMPLETED":
     try:
         report = client.get_report(run_id)
         if report:
+            # Provenance sidebar
+            structured = report.get("structured") or {}
+            sources_used = structured.get("_sources_used")
+            sources_failed = structured.get("_sources_failed")
+            elapsed = structured.get("_elapsed_s")
+            is_demo = structured.get("_demo_mode", False)
+
+            if sources_used or is_demo:
+                with st.expander("🔍 Execution Details & Provenance", expanded=False):
+                    st.markdown(f"**Execution Mode:** {mode_icon} {mode_label}")
+                    if is_demo:
+                        st.warning("Demo mode — synthetic data, no live sources used.")
+                    if sources_used:
+                        st.markdown("**Sources used:**")
+                        for s in sources_used:
+                            st.markdown(f"- ✅ `{s}`")
+                    if sources_failed:
+                        st.markdown("**Sources failed:**")
+                        for s in sources_failed:
+                            st.markdown(f"- ❌ `{s}`")
+                    if elapsed is not None:
+                        st.caption(f"Retrieval elapsed: {elapsed:.2f}s")
+
             render_report(report)
         else:
             st.warning("Report not ready yet, please refresh.")
