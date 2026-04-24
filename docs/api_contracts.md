@@ -35,7 +35,8 @@ Submit a new stock analysis request. Returns immediately with a `run_id`. Analys
 ```json
 {
   "ticker": "AAPL",
-  "period": "1y"
+  "period": "1y",
+  "execution_mode": "hybrid"
 }
 ```
 
@@ -43,6 +44,7 @@ Submit a new stock analysis request. Returns immediately with a `run_id`. Analys
 |-------|------|-------------|-------------|
 | `ticker` | string | 1–10 chars, uppercased automatically | US-listed stock ticker symbol |
 | `period` | string | One of: `1mo`, `3mo`, `6mo`, `1y`, `2y`, `5y` | Historical data period for analysis |
+| `execution_mode` | string | One of: `rag_only`, `agent_only`, `hybrid` (default: `hybrid`) | Analysis execution strategy |
 
 #### Response — 202 Accepted
 
@@ -51,6 +53,7 @@ Submit a new stock analysis request. Returns immediately with a `run_id`. Analys
   "run_id": "f73ebdab-b1cc-43e8-9503-61abdd2636f9",
   "ticker": "AAPL",
   "status": "pending",
+  "execution_mode": "hybrid",
   "created_at": "2026-04-20T10:00:00.123456Z"
 }
 ```
@@ -102,6 +105,7 @@ Poll the status of an analysis run.
 | `run_id` | string | UUID of the analysis run |
 | `ticker` | string | Uppercase ticker symbol |
 | `status` | string | One of: `pending`, `running`, `completed`, `failed` |
+| `execution_mode` | string \| null | Execution mode used for this run |
 | `created_at` | ISO 8601 datetime | When run was submitted |
 | `started_at` | ISO 8601 datetime \| null | When crew began processing |
 | `completed_at` | ISO 8601 datetime \| null | When run finished (success or failure) |
@@ -157,6 +161,7 @@ Retrieve the completed analysis report.
     "recommendation": "...",
     "_demo_mode": true
   },
+  "execution_mode": "hybrid",
   "created_at": "2026-04-20T10:00:01.234567Z"
 }
 ```
@@ -169,6 +174,7 @@ Retrieve the completed analysis report.
 | `content` | string | Full markdown report text |
 | `structured` | object | Parsed sections from the report |
 | `structured._demo_mode` | boolean | `true` if generated in demo mode |
+| `execution_mode` | string \| null | Execution mode that produced this report |
 | `created_at` | ISO 8601 datetime | When report was saved |
 
 #### Response — 202 Accepted (run not yet complete)
@@ -217,6 +223,7 @@ List recent analysis runs, most recent first.
       "run_id": "f73ebdab-b1cc-43e8-9503-61abdd2636f9",
       "ticker": "AAPL",
       "status": "completed",
+      "execution_mode": "hybrid",
       "created_at": "2026-04-20T10:00:00.123456Z",
       "completed_at": "2026-04-20T10:00:01.234567Z",
       "has_report": true
@@ -225,6 +232,7 @@ List recent analysis runs, most recent first.
       "run_id": "c2b0117a-...",
       "ticker": "MSFT",
       "status": "failed",
+      "execution_mode": "rag_only",
       "created_at": "2026-04-20T09:55:00Z",
       "completed_at": "2026-04-20T09:55:10Z",
       "has_report": false
@@ -238,6 +246,7 @@ List recent analysis runs, most recent first.
 |-------|------|-------------|
 | `items` | array | List of HistoryItem objects |
 | `total` | integer | Number of items returned (≤ limit) |
+| `items[].execution_mode` | string \| null | Execution mode used for this run |
 | `items[].has_report` | boolean | Whether a report was successfully generated for this run |
 
 #### Error Responses
@@ -284,15 +293,14 @@ Readiness check. Verifies database connectivity and MCP tool registration. Use t
 ```json
 {
   "status": "ok",
-  "db": true,
+  "db": "ok",
   "mcp_tools": [
-    "stock_price",
-    "financial_statements",
-    "technical_indicators",
-    "sector_analysis",
-    "risk_metrics",
-    "news_sentiment",
-    "save_report"
+    "get_stock_price",
+    "get_financial_statements",
+    "get_technical_indicators",
+    "get_sector_analysis",
+    "get_risk_metrics",
+    "get_news_sentiment"
   ]
 }
 ```
@@ -300,13 +308,98 @@ Readiness check. Verifies database connectivity and MCP tool registration. Use t
 | Field | Type | Description |
 |-------|------|-------------|
 | `status` | string | `"ok"` if all checks pass |
-| `db` | boolean | `true` if database connection is healthy |
-| `mcp_tools` | string[] | List of registered MCP tool names |
+| `db` | string | `"ok"` if database connection is healthy; `"error"` if it failed |
+| `mcp_tools` | string[] | List of registered MCP tool names (6 data tools) |
 
 #### Example
 
 ```bash
 curl -s http://localhost:8010/api/v1/ready | jq '.db'
+```
+
+---
+
+### GET /api/v1/sources
+
+List all configured data sources with their current status and last-fetch metadata. Does not require authentication.
+
+#### Response — 200 OK
+
+```json
+{
+  "sources": [
+    {
+      "key": "yahoo_finance",
+      "name": "Yahoo Finance",
+      "status": "OK",
+      "description": "Price history, financials, company info via yfinance",
+      "asset_types": "equities",
+      "last_fetch": "2026-04-24T10:00:01.123456Z",
+      "latency_ms": 312.4,
+      "records_returned": 252,
+      "assets_covered": 0,
+      "notes": "Provides price history, financial statements, technical data, sector ETFs",
+      "error_message": ""
+    },
+    {
+      "key": "newsapi",
+      "name": "News API",
+      "status": "WARN",
+      "description": "Financial news headlines via newsapi.org",
+      "asset_types": "news",
+      "last_fetch": null,
+      "latency_ms": 0.0,
+      "records_returned": 0,
+      "assets_covered": 0,
+      "notes": "Key not configured — using keyword sentiment fallback",
+      "error_message": ""
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "by_status": {"OK": 1, "WARN": 1, "OFFLINE": 1, "FUTURE": 2}
+  }
+}
+```
+
+| Status Value | Meaning |
+|-------------|---------|
+| `OK` | Source is reachable and returning data |
+| `WARN` | Source is degraded or using a fallback |
+| `ERROR` | Last fetch failed with an error |
+| `OFFLINE` | Source is configured but not active |
+| `FUTURE` | Source is planned but not implemented |
+
+#### Example
+
+```bash
+curl -s http://localhost:8010/api/v1/sources | jq '.summary'
+```
+
+---
+
+### GET /api/v1/sources/status
+
+Compact health summary of all data sources grouped by status count.
+
+#### Response — 200 OK
+
+```json
+{
+  "total": 5,
+  "by_status": {
+    "OK": 1,
+    "WARN": 1,
+    "OFFLINE": 1,
+    "FUTURE": 2
+  }
+}
+```
+
+#### Example
+
+```bash
+curl -s http://localhost:8010/api/v1/sources/status
 ```
 
 ---
@@ -373,6 +466,18 @@ Prometheus metrics endpoint. Returns OpenMetrics text format. Not versioned unde
 
 ---
 
+## Execution Mode Values
+
+| Value | LLM Calls | Description | Typical Duration |
+|-------|-----------|-------------|-----------------|
+| `rag_only` | No | Fetches raw market data from all 6 tools and returns a formatted snapshot report. No AI synthesis. | ~2–5 seconds |
+| `agent_only` | Yes | Runs all 5 CrewAI agents sequentially. Each agent calls tools on demand. Full AI-generated investment memo. | ~30–60 seconds |
+| `hybrid` | Yes | Pre-fetches all data via RAG pass, then injects that data into the agent crew. Default mode. | ~40–70 seconds |
+
+When `DEMO_MODE=true` or `ANTHROPIC_API_KEY` is a placeholder, all modes return a synthetic demo report with no LLM calls (~1 second).
+
+---
+
 ## Polling Pattern
 
 Since analysis is asynchronous, clients should poll the status endpoint:
@@ -383,7 +488,7 @@ import time, requests
 BASE = "http://localhost:8010/api/v1"
 
 # Submit
-resp = requests.post(f"{BASE}/analyze", json={"ticker": "AAPL", "period": "1y"})
+resp = requests.post(f"{BASE}/analyze", json={"ticker": "AAPL", "period": "1y", "execution_mode": "hybrid"})
 run_id = resp.json()["run_id"]
 
 # Poll until done
@@ -400,5 +505,7 @@ if status["status"] == "completed":
 ```
 
 **Typical durations:**
-- Demo mode: ~0.5–1 second
-- Live mode (5 agents + LLM calls): 60–120 seconds
+- Demo mode: ~0.5–1 second (any execution_mode with placeholder API key)
+- `rag_only` live: ~2–5 seconds
+- `agent_only` live: ~30–60 seconds
+- `hybrid` live: ~40–70 seconds

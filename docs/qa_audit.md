@@ -114,7 +114,7 @@ Two tests had incorrect test data that made the assertions impossible to satisfy
 - **Separation:** Tools delegate to services; no business logic in tool layer.
 
 ### Agents / Crew
-- **Execution modes:** 3 distinct paths (demo, rag_only, hybrid) — clearly separated in code.
+- **Execution modes:** 4 distinct paths (demo, rag_only, agent_only, hybrid) — clearly separated in code.
 - **Task context:** Hybrid mode correctly injects pre-fetched RAG data into report writer task description.
 - **Output persistence:** Agent outputs saved to DB per agent in live/hybrid modes.
 
@@ -172,4 +172,4 @@ Two tests had incorrect test data that made the assertions impossible to satisfy
 | Demo mode | **Ready** — All 3 execution modes return valid reports in demo mode |
 | Production-style structure | **Ready** — FastAPI + SQLAlchemy + CrewAI + MCP + Prometheus |
 
-**The repository is ready for Phase 4 (Notebooks and Static Site).**
+**The repository is ready for portfolio review and demo deployment.**

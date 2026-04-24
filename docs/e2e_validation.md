@@ -12,7 +12,7 @@
 User / UI / Notebook
        │
        ▼
-POST /api/v1/analyze
+POST /api/v1/analyze  { ticker, period, execution_mode }
        │  (202 Accepted immediately — run_id returned)
        ▼
 Background Thread (ThreadPoolExecutor)
@@ -20,20 +20,30 @@ Background Thread (ThreadPoolExecutor)
        ├── AnalysisRunRepository.update_status(RUNNING)
        │
        ▼
-InvestmentCrew.run()
+InvestmentCrew.run(execution_mode)
        │
-       ├── [Demo Mode] _run_demo() ──► synthetic report ──► DB ──► COMPLETED
+       ├── [Demo / placeholder key] _run_demo()
+       │        └── synthetic report ──► DB ──► COMPLETED
        │
-       └── [Live Mode] _run_live()
-                  │
-                  ├── Research Agent     (stock_price + financial_statements tools)
-                  ├── Technical Analyst  (technical_indicators + stock_price tools)
-                  ├── Sector Analyst     (sector_analysis + stock_price tools)
-                  ├── Risk Analyst       (risk_metrics + news_sentiment tools)
-                  └── Report Writer      (save_report tool)
-                             │
-                             ▼
-                     ReportService.save() ──► DB ──► COMPLETED
+       ├── [rag_only] _run_rag_only()
+       │        └── execute_rag_pass() calls all 6 MCP tools
+       │                   └── _build_rag_snapshot_report() ──► DB ──► COMPLETED
+       │
+       ├── [agent_only] _run_live()
+       │        ├── Research Agent     (get_stock_price + get_financial_statements)
+       │        ├── Technical Analyst  (get_technical_indicators + get_stock_price)
+       │        ├── Sector Analyst     (get_sector_analysis + get_stock_price)
+       │        ├── Risk Analyst       (get_risk_metrics + get_news_sentiment)
+       │        └── Report Writer      (save_report tool ──► DB ──► COMPLETED)
+       │
+       └── [hybrid] _run_hybrid()
+                ├── execute_rag_pass() pre-fetches all 6 tools
+                ├── inject RAG context into Report Writer task
+                ├── Research Agent     (get_stock_price + get_financial_statements)
+                ├── Technical Analyst  (get_technical_indicators + get_stock_price)
+                ├── Sector Analyst     (get_sector_analysis + get_stock_price)
+                ├── Risk Analyst       (get_risk_metrics + get_news_sentiment)
+                └── Report Writer      (save_report tool ──► DB ──► COMPLETED)
        │
        ▼
 GET /api/v1/analyze/{run_id}/status  (client polls)
@@ -74,7 +84,7 @@ curl http://localhost:8010/api/v1/health
 ```bash
 curl -s -X POST http://localhost:8010/api/v1/analyze \
   -H "Content-Type: application/json" \
-  -d '{"ticker":"AAPL","period":"1y"}'
+  -d '{"ticker":"AAPL","period":"1y","execution_mode":"hybrid"}'
 ```
 
 **Expected response (HTTP 202):**
@@ -83,6 +93,7 @@ curl -s -X POST http://localhost:8010/api/v1/analyze \
   "run_id": "f73ebdab-b1cc-43e8-9503-61abdd2636f9",
   "ticker": "AAPL",
   "status": "pending",
+  "execution_mode": "hybrid",
   "created_at": "2026-04-20T10:00:00Z"
 }
 ```

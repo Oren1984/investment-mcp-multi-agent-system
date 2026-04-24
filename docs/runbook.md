@@ -69,7 +69,7 @@ curl http://localhost:8010/api/v1/health
 # {"status":"ok","version":"1.0.0"}
 
 curl http://localhost:8010/api/v1/ready
-# {"status":"ok","db":true,"mcp_tools":["stock_price","financial_statements",...]}
+# {"status":"ok","db":"ok","mcp_tools":["get_stock_price","get_financial_statements",...]}
 ```
 
 ### 5. Access services
@@ -113,6 +113,32 @@ All variables are loaded from `.env`. The file is never committed to version con
 | `GRAFANA_USER` | `admin` | No | Grafana login username |
 | `GRAFANA_PASSWORD` | *(set in .env)* | No | Grafana login password |
 | `BACKEND_URL` | `http://localhost:8000` | No | Used by UI container (internal Docker network) |
+
+---
+
+## Choosing an Execution Mode
+
+Every analysis request accepts an `execution_mode` parameter:
+
+| Mode | LLM? | Speed | Use When |
+|------|------|-------|----------|
+| `rag_only` | No | ~2–5 s | Quick data snapshot, no AI synthesis |
+| `agent_only` | Yes | ~30–60 s | Full AI memo, agents call tools on demand |
+| `hybrid` | Yes | ~40–70 s | Full AI memo pre-informed by all 6 data fetches (default) |
+
+```bash
+# RAG-only snapshot (no API key needed beyond demo)
+curl -X POST http://localhost:8010/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"ticker":"AAPL","period":"1y","execution_mode":"rag_only"}'
+
+# Full agent analysis
+curl -X POST http://localhost:8010/api/v1/analyze \
+  -H "Content-Type: application/json" \
+  -d '{"ticker":"AAPL","period":"1y","execution_mode":"agent_only"}'
+```
+
+If `DEMO_MODE=true` or the API key is a placeholder, all modes produce a synthetic demo report regardless of the mode selected.
 
 ---
 
